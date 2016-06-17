@@ -1,3 +1,4 @@
+-- vim:ts=2 sw=2
 local screenWidth, screenHeight
 local assets = {textfont, blockfont}
 
@@ -32,7 +33,7 @@ function love.draw()
       love.graphics.print(board.grid[(i*board.width) + j], bx + (j * 32), by + (i * 32))
     end
   end
-  
+
   -- draw dropping tile
   if (currentTile) then
     love.graphics.setColor(255, 200, 20, 255)
@@ -106,12 +107,20 @@ function rotateCW(src)
 end
 
 function scoreBoard()
-  --[[ scan the board, checking for bare edges.
+  --[[ scan the board, trying to find complete regions.
   mark the extent of connected tiles, higher score for larger areas
   once an extent is complete, remove it.
   Once all are removed, start from the bottom, and move tiles as
   far down as possible.
   ]]
+
+  -- scan the board (any order, bottom up not required)
+  for i, tile in ipairs(board.grid) do
+    if (tile.isRequired) then
+      -- if this tile is marked as required, check we meet the requirement.
+      -- if we do, then we become part of that group
+    end
+  end
 end
 
 function readInput()
@@ -163,7 +172,7 @@ function trySlideTile(dx)
 end
 
 function random(min, max)
-	return min + math.floor(math.random() * (max - min + 1))
+  return min + math.floor(math.random() * (max - min + 1))
 end
 
 function shuffle(list)
@@ -171,16 +180,16 @@ function shuffle(list)
   local len = 0
 
   for k, v in pairs(list) do
-  	j = random(0, len)
+    j = random(0, len)
 
-  	if j == len then
-  		table.insert(shuffled, v)
-  	else
-  		table.insert(shuffled, shuffled[j + 1])
-  		shuffled[j + 1] = v
-  	end
+    if j == len then
+      table.insert(shuffled, v)
+    else
+      table.insert(shuffled, shuffled[j + 1])
+      shuffled[j + 1] = v
+    end
 
-  	len = len + 1
+    len = len + 1
   end
 
   return shuffled
