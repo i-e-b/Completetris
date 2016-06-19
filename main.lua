@@ -1,4 +1,6 @@
 -- vim:ts=2 sw=2
+local deque = require "deque"
+
 local screenWidth, screenHeight
 local assets = {textfont, blockfont}
 
@@ -112,15 +114,34 @@ function scoreBoard()
   once an extent is complete, remove it.
   Once all are removed, start from the bottom, and move tiles as
   far down as possible.
-  ]]
 
-  -- scan the board (any order, bottom up not required)
-  for i, tile in ipairs(board.grid) do
-    if (tile.isRequired) then
-      -- if this tile is marked as required, check we meet the requirement.
-      -- if we do, then we become part of that group
+
+  for each tile
+    while items in rescan list:
+      .check edges match, if so mark target with group.
+        .else mark group as incomplete, delete group from list and exit
+      .add new edges to the list if target doesn't have a group
+    if tile has a group, skip
+    else
+      .increment group number
+      .set tile group
+      .add all edges to rescan list
+  done
+
+  any groups not marked incomplete to be removed and scored.
+  ]]
+  local groupNumber = 1
+  local groups = {}
+  local edgeList = deque.new()
+  local failedGroups = {}
+
+  for y=0,board.height-1 do
+    for x=0,board.width-1 do
+      for i=1, #edgeList do
+      end
     end
   end
+  -- all groups not in failed groups get scored
 end
 
 function readInput()
