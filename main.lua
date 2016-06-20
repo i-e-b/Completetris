@@ -10,7 +10,6 @@ local board = {grid, width=7, height=14} -- grid of blocks, with a width
 local input = {up,down,left,right} -- arrow keys
 local stepTime = 1.0 -- smaller = harder levels
 
-
 function love.load()
   math.randomseed(os.time())
   love.window.fullscreen = (love.system.getOS() == "Android")
@@ -130,18 +129,112 @@ function scoreBoard()
 
   any groups not marked incomplete to be removed and scored.
   ]]
-  local groupNumber = 1
+
+  local groupNumber = 0
   local groups = {}
-  local edgeList = deque.new()
+  local pairList = deque.new()
   local failedGroups = {}
 
   for y=0,board.height-1 do
     for x=0,board.width-1 do
-      for i=1, #edgeList do
+      while (not pairList.is_empty()) do
+        local pair = pairList.pop_right()
+        local targetGroup = Get(groups, pair.dstX, pair.dstY)
+        if compatibleGroup(pair.group, targetGroup) and areJoined(pair) then
+          Set(groups, pair.dstX, pair.dstY, pair.group)
+          addEdges(x,y, groupNumber, pairList)
+        else
+          failedGroups[pair.group] = true
+        end
+      end
+
+      -- add untouched, non empty tiles to the search
+      if (not Get(groups, x, y)) and (Get(board.grid, x, y) ~= ' ') then
+        groupNumber = groupNumber + 1
+        addEdges(x,y, groupNumber, pairList)
       end
     end
   end
   -- all groups not in failed groups get scored
+  -- we count them all together... if you get two small
+  -- groups to score at once, that's the same as an equal sized
+  -- single group
+end
+
+function addEdges(x,y, groupNumber, pairList, groups)
+  local newEdges = edgesOf(x, y)
+  for i,newEdge in ipairs(newEdges) do
+    -- if it's not got *our* group, add it.
+    if not (Get(groups, newEdge.x, newEdge.y) == groupNumber) then
+      pairList.push_right({
+        srcX=x, srcY=y,
+        dstX=newEdge.x, dstY=newEdge.y, group=groupNumber})
+    end
+  end
+end
+
+function Get(array, x,y)
+  return array[(y*board.width) + x]
+end
+function Set(array, x,y, value)
+  array[(y*board.width) + x] = value
+end
+
+function compatibleGroup(src, dst)
+  return (dst == nil) or (src == dst)
+  -- if dst has same group, or no group return true, else false
+end
+
+function areJoined(pair)
+  -- pair.srcX, pair.srcY, pair.dstX, pair.dstY
+  -- if the tiles share edges, return true. else false
+  -- e.g. if a tile at 3,4 has a top edge and 3,5 has a bottom edge, this is true
+  local sdx = pair.dstX - pair.srcX;
+  local dsx = pair.srcX - pair.dstX;
+  local sdy = pair.dstY - pair.srcY;
+  local dsy = pair.srcY - pair.dstY;
+
+  local src = Get(board.grid, pair.srcX, pair.srcY)
+  local dst = Get(board.grid, pair.dstX, pair.dstY)
+
+  return (isEdgeAt(src, sdx, sdy)) and (isEdgeAt(dst, dsx, dsy))
+end
+
+function isEdgeAt(tileType, dx, dy)
+  --" nu<>xXr7LJAUCD#"
+  if tileType == ' ' then
+    return false
+  elseif tileType == '#' then
+    return true
+  elseif tileType == 'n' then
+    return dx == 0 and dy < 0 -- TODO: double check the direction...
+  elseif tileType == 'u' then
+    return dx == 0 and dy > 0
+  elseif tileType == '<' then
+    return dx > 0 and dy == 0
+  elseif tileType == '>' then
+    return dx < 0 and dy == 0
+  elseif tileType == 'x' then
+    return dx ~= 0 and dy == 0
+  elseif tileType == 'X' then
+    return dx == 0 and dy ~= 0
+  elseif tileType == 'r' then
+    return (dx > 0 and dy == 0) or (dx == 0 and dy < 0)
+  elseif tileType == '7' then
+    return (dx < 0 and dy == 0) or (dx == 0 and dy < 0)
+  elseif tileType == 'L' then
+    return (dx > 0 and dy == 0) or (dx == 0 and dy > 0)
+  elseif tileType == 'J' then
+    return (dx < 0 and dy == 0) or (dx == 0 and dy > 0)
+  elseif tileType == 'A' then
+    return not (dx == 0 and dy < 0)
+  elseif tileType == 'U' then
+    return not (dx == 0 and dy > 0)
+  elseif tileType == 'C' then
+    return not (dx > 0 and dy == 0)
+  elseif tileType == 'D' then
+    return not (dx < 0 and dy == 0)
+  end
 end
 
 function readInput()
