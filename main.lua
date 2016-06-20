@@ -108,42 +108,23 @@ function rotateCW(src)
 end
 
 function scoreBoard()
-  --[[ scan the board, trying to find complete regions.
-  mark the extent of connected tiles, higher score for larger areas
-  once an extent is complete, remove it.
-  Once all are removed, start from the bottom, and move tiles as
-  far down as possible.
-
-
-  for each tile
-    while items in rescan list:
-      .check edges match, if so mark target with group.
-        .else mark group as incomplete, delete group from list and exit
-      .add new edges to the list if target doesn't have a group
-    if tile has a group, skip
-    else
-      .increment group number
-      .set tile group
-      .add all edges to rescan list
-  done
-
-  any groups not marked incomplete to be removed and scored.
-  ]]
 
   local groupNumber = 0
   local groups = {}
   local pairList = deque.new()
   local failedGroups = {}
+  local trace = ""
 
   for y=0,board.height-1 do
     for x=0,board.width-1 do
-      while (not pairList.is_empty()) do
-        local pair = pairList.pop_right()
+      while (not pairList:is_empty()) do
+        local pair = pairList:pop_right()
         local targetGroup = Get(groups, pair.dstX, pair.dstY)
         if compatibleGroup(pair.group, targetGroup) and areJoined(pair) then
           Set(groups, pair.dstX, pair.dstY, pair.group)
-          addEdges(x,y, groupNumber, pairList)
+          addEdges(x,y, pair.group, pairList, groups)
         else
+          trace = trace .. " x" .. pair.group
           failedGroups[pair.group] = true
         end
       end
@@ -151,7 +132,8 @@ function scoreBoard()
       -- add untouched, non empty tiles to the search
       if (not Get(groups, x, y)) and (Get(board.grid, x, y) ~= ' ') then
         groupNumber = groupNumber + 1
-        addEdges(x,y, groupNumber, pairList)
+        local added = addEdges(x,y, groupNumber, pairList, groups)
+        if (added < 1) then error('bad edges for '..x..','..y..' : '..Get(board.grid, x, y)) end
       end
     end
   end
@@ -159,18 +141,40 @@ function scoreBoard()
   -- we count them all together... if you get two small
   -- groups to score at once, that's the same as an equal sized
   -- single group
+  local OK = false
+  for check=1,groupNumber do
+    if not (failedGroups[check]) then
+      OK = true
+      trace = trace .. " Y" .. check
+    end
+  end
+
+  if OK then error(trace) end
 end
 
 function addEdges(x,y, groupNumber, pairList, groups)
   local newEdges = edgesOf(x, y)
   for i,newEdge in ipairs(newEdges) do
     -- if it's not got *our* group, add it.
-    if not (Get(groups, newEdge.x, newEdge.y) == groupNumber) then
-      pairList.push_right({
+    if (Get(groups, newEdge.x, newEdge.y) ~= groupNumber)  then
+      pairList:push_right({
         srcX=x, srcY=y,
         dstX=newEdge.x, dstY=newEdge.y, group=groupNumber})
     end
   end
+  return #newEdges
+end
+
+function edgesOf(sx, sy)
+  local res = {}
+  local tileType = Get(board.grid, sx, sy)
+
+  if isEdgeAt(tileType, -1,  0) then table.insert(res, {x=sx - 1, y=sy}) end
+  if isEdgeAt(tileType,  0, -1) then table.insert(res, {x=sx, y=sy - 1}) end
+  if isEdgeAt(tileType,  1,  0) then table.insert(res, {x=sx + 1, y=sy}) end
+  if isEdgeAt(tileType,  0,  1) then table.insert(res, {x=sx, y=sy + 1}) end
+
+  return res
 end
 
 function Get(array, x,y)
@@ -197,7 +201,7 @@ function areJoined(pair)
   local src = Get(board.grid, pair.srcX, pair.srcY)
   local dst = Get(board.grid, pair.dstX, pair.dstY)
 
-  return (isEdgeAt(src, sdx, sdy)) and (isEdgeAt(dst, dsx, dsy))
+  return (isEdgeAt(src, sdx, dsy)) and (isEdgeAt(dst, dsx, sdy))
 end
 
 function isEdgeAt(tileType, dx, dy)
@@ -215,9 +219,9 @@ function isEdgeAt(tileType, dx, dy)
   elseif tileType == '>' then
     return dx < 0 and dy == 0
   elseif tileType == 'x' then
-    return dx ~= 0 and dy == 0
+    return dy == 0
   elseif tileType == 'X' then
-    return dx == 0 and dy ~= 0
+    return dx == 0
   elseif tileType == 'r' then
     return (dx > 0 and dy == 0) or (dx == 0 and dy < 0)
   elseif tileType == '7' then
@@ -235,6 +239,7 @@ function isEdgeAt(tileType, dx, dy)
   elseif tileType == 'D' then
     return not (dx < 0 and dy == 0)
   end
+  error('bad tile '..tileType)
 end
 
 function readInput()
@@ -316,6 +321,6 @@ function fillBag()
   if #bag > 0 then return end
 
   -- add tiles to be served. TODO: different bags for different levels
-  local src = {'n','u','<','>','x','X','r','7','L','J','A','U','C','D','#'}
+  local src = {'n','u','<','>'}--,'x','X','r','7','L','J','A','U','C','D','#'}
   bag = shuffle(src)
 end
