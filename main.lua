@@ -5,6 +5,10 @@ local screenWidth, screenHeight
 local assets = {textfont, blockfont}
 
 local bag = {} -- source of tiles
+
+local groups = {}
+local failedGroups = {}
+
 local currentTile = nil
 local board = {grid, width=7, height=14} -- grid of blocks, with a width
 local input = {up,down,left,right} -- arrow keys
@@ -29,9 +33,9 @@ function love.draw()
   love.graphics.setColor(100, 240, 180, 255)
   local bx = (screenWidth - (board.width * 32)) / 2
   local by = (screenHeight - (board.height * 32)) / 2
-  for i=0,board.height-1 do
-    for j=0,board.width-1 do
-      love.graphics.print(board.grid[(i*board.width) + j], bx + (j * 32), by + (i * 32))
+  for y=0,board.height-1 do
+    for x=0,board.width-1 do
+      love.graphics.print(board.grid[(y*board.width) + x], bx + (x * 32), by + (y * 32))
     end
   end
 
@@ -57,6 +61,20 @@ function love.draw()
   love.graphics.setFont(assets.textfont)
   love.graphics.setColor(255, 200, 20, 255)
   love.graphics.print("COMPLETE-TRIS", 32, 32)
+
+
+    -- diagnostics
+    love.graphics.setFont(assets.textfont)
+    love.graphics.setColor(120, 120, 120, 255)
+    for y=0,board.height-1 do
+      for x=0,board.width-1 do
+        local grp = Get(groups, x, y) or 0
+        if (failedGroups[grp]) then love.graphics.setColor(120, 0, 0, 255)
+        else love.graphics.setColor(0, 120, 0, 255)
+        end
+        love.graphics.print(grp , bx + (x * 32), by + (y * 32), 0, 0.5)
+      end
+    end
 end
 
 function love.keypressed(key)
@@ -108,32 +126,36 @@ function rotateCW(src)
 end
 
 function scoreBoard()
+  local groupNumber = 1
 
-  local groupNumber = 0
-  local groups = {}
+  groups = {}
+  failedGroups = {}
+
   local pairList = deque.new()
-  local failedGroups = {}
   local trace = ""
 
-  for y=0,board.height-1 do
+  for y=0,board.height do -- we over-run the end to catch the bottom corner
     for x=0,board.width-1 do
       while (not pairList:is_empty()) do
         local pair = pairList:pop_right()
         local targetGroup = Get(groups, pair.dstX, pair.dstY)
         if compatibleGroup(pair.group, targetGroup) and areJoined(pair) then
           Set(groups, pair.dstX, pair.dstY, pair.group)
-          addEdges(x,y, pair.group, pairList, groups)
+          addEdges(pair.dstX, pair.dstY, pair.group, pairList, groups)
         else
-          trace = trace .. " x" .. pair.group
           failedGroups[pair.group] = true
         end
       end
 
       -- add untouched, non empty tiles to the search
       if (not Get(groups, x, y)) and (Get(board.grid, x, y) ~= ' ') then
+        Set(groups, x, y, groupNumber)
+        local addedCount = addEdges(x,y, groupNumber, pairList, groups)
+        if (addedCount < 1) then
+          failedGroups[groupNumber] = true
+        end
+
         groupNumber = groupNumber + 1
-        local added = addEdges(x,y, groupNumber, pairList, groups)
-        if (added < 1) then error('bad edges for '..x..','..y..' : '..Get(board.grid, x, y)) end
       end
     end
   end
@@ -141,25 +163,16 @@ function scoreBoard()
   -- we count them all together... if you get two small
   -- groups to score at once, that's the same as an equal sized
   -- single group
-  local OK = false
-  for check=1,groupNumber do
-    if not (failedGroups[check]) then
-      OK = true
-      trace = trace .. " Y" .. check
-    end
-  end
-
-  if OK then error(trace) end
 end
 
 function addEdges(x,y, groupNumber, pairList, groups)
   local newEdges = edgesOf(x, y)
   for i,newEdge in ipairs(newEdges) do
     -- if it's not got *our* group, add it.
-    if (Get(groups, newEdge.x, newEdge.y) ~= groupNumber)  then
-      pairList:push_right({
-        srcX=x, srcY=y,
-        dstX=newEdge.x, dstY=newEdge.y, group=groupNumber})
+    if (Get(groups, newEdge.x, newEdge.y) ~= groupNumber) then
+        pairList:push_right({
+          srcX=x, srcY=y,
+          dstX=newEdge.x, dstY=newEdge.y, group=groupNumber})
     end
   end
   return #newEdges
@@ -178,9 +191,15 @@ function edgesOf(sx, sy)
 end
 
 function Get(array, x,y)
+  if (x < 0) or (x >= board.width) or (y >= board.height) or (y < 0) then
+      return nil
+  end
   return array[(y*board.width) + x]
 end
 function Set(array, x,y, value)
+  if (x < 0) or (x >= board.width) or (y >= board.height) or (y < 0) then
+      return
+  end
   array[(y*board.width) + x] = value
 end
 
@@ -201,19 +220,20 @@ function areJoined(pair)
   local src = Get(board.grid, pair.srcX, pair.srcY)
   local dst = Get(board.grid, pair.dstX, pair.dstY)
 
-  return (isEdgeAt(src, sdx, dsy)) and (isEdgeAt(dst, dsx, sdy))
+  return (isEdgeAt(src, sdx, sdy)) and (isEdgeAt(dst, dsx, dsy))
 end
 
 function isEdgeAt(tileType, dx, dy)
+  if not tileType then return false
   --" nu<>xXr7LJAUCD#"
-  if tileType == ' ' then
+  elseif tileType == ' ' then
     return false
   elseif tileType == '#' then
     return true
   elseif tileType == 'n' then
-    return dx == 0 and dy < 0 -- TODO: double check the direction...
-  elseif tileType == 'u' then
     return dx == 0 and dy > 0
+  elseif tileType == 'u' then
+    return dx == 0 and dy < 0
   elseif tileType == '<' then
     return dx > 0 and dy == 0
   elseif tileType == '>' then
@@ -223,17 +243,17 @@ function isEdgeAt(tileType, dx, dy)
   elseif tileType == 'X' then
     return dx == 0
   elseif tileType == 'r' then
-    return (dx > 0 and dy == 0) or (dx == 0 and dy < 0)
-  elseif tileType == '7' then
-    return (dx < 0 and dy == 0) or (dx == 0 and dy < 0)
-  elseif tileType == 'L' then
     return (dx > 0 and dy == 0) or (dx == 0 and dy > 0)
-  elseif tileType == 'J' then
+  elseif tileType == '7' then
     return (dx < 0 and dy == 0) or (dx == 0 and dy > 0)
+  elseif tileType == 'L' then
+    return (dx > 0 and dy == 0) or (dx == 0 and dy < 0)
+  elseif tileType == 'J' then
+    return (dx < 0 and dy == 0) or (dx == 0 and dy < 0)
   elseif tileType == 'A' then
-    return not (dx == 0 and dy < 0)
-  elseif tileType == 'U' then
     return not (dx == 0 and dy > 0)
+  elseif tileType == 'U' then
+    return not (dx == 0 and dy < 0)
   elseif tileType == 'C' then
     return not (dx > 0 and dy == 0)
   elseif tileType == 'D' then
@@ -321,6 +341,6 @@ function fillBag()
   if #bag > 0 then return end
 
   -- add tiles to be served. TODO: different bags for different levels
-  local src = {'n','u','<','>'}--,'x','X','r','7','L','J','A','U','C','D','#'}
+  local src = {'n','u','<','>','x','X','r','7','L','J'}--,'A','U','C','D','#'}
   bag = shuffle(src)
 end
