@@ -6,13 +6,15 @@ local assets = {textfont, blockfont}
 
 local bag = {} -- source of tiles
 
+-- these two could be local to the scoring function,
+-- but are here to show the diagnostic view
 local groups = {}
 local failedGroups = {}
 
 local currentTile = nil
-local board = {grid, width=7, height=14} -- grid of blocks, with a width
+local board = {grid, width=7, height=14} -- grid of blocks
 local input = {up,down,left,right} -- arrow keys
-local stepTime = 1.0 -- smaller = harder levels
+local stepTime = 0.20 -- smaller = harder levels
 
 function love.load()
   math.randomseed(os.time())
@@ -63,18 +65,20 @@ function love.draw()
   love.graphics.print("COMPLETE-TRIS", 32, 32)
 
 
-    -- diagnostics
+    --[[ diagnostics
     love.graphics.setFont(assets.textfont)
     love.graphics.setColor(120, 120, 120, 255)
     for y=0,board.height-1 do
       for x=0,board.width-1 do
-        local grp = Get(groups, x, y) or 0
-        if (failedGroups[grp]) then love.graphics.setColor(120, 0, 0, 255)
-        else love.graphics.setColor(0, 120, 0, 255)
+        local grp = Get(groups, x, y)
+        if (grp) then
+          if (failedGroups[grp]) then love.graphics.setColor(120, 0, 0, 255)
+          else love.graphics.setColor(0, 120, 0, 255)
+          end
+          love.graphics.print(grp , bx + (x * 32), by + (y * 32), 0, 0.5)
         end
-        love.graphics.print(grp , bx + (x * 32), by + (y * 32), 0, 0.5)
       end
-    end
+    end]]
 end
 
 function love.keypressed(key)
