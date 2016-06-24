@@ -12,6 +12,7 @@ local groups = {}
 local failedGroups = {}
 
 local currentTile = nil
+local score = 0
 local board = {grid, width=7, height=14} -- grid of blocks
 local input = {up,down,left,right} -- arrow keys
 local stepTime = 0.90 -- smaller = harder levels
@@ -62,7 +63,7 @@ function love.draw()
   -- TODO: status
   love.graphics.setFont(assets.textfont)
   love.graphics.setColor(255, 200, 20, 255)
-  love.graphics.print("COMPLETE-TRIS", 32, 32)
+  love.graphics.print(score, 32, 32)
 
 
     --[[ diagnostics
@@ -167,11 +168,14 @@ function scoreBoard()
   -- we count them all together... if you get two small
   -- groups to score at once, that's the same as an equal sized
   -- single group
+  local scoreMultiplier = 1
   for x=0,board.width-1  do
     local y = board.height - 1
     while (y >= 0) do
       local grp = Get(groups, x, y)
       if (grp) and (not failedGroups[grp]) then
+        score = score + scoreMultiplier
+        scoreMultiplier = scoreMultiplier + scoreMultiplier
         -- copy tiles 'above' down one
         for z=y,1,-1 do
           Set(board.grid, x, z, Get (board.grid, x, z - 1))
