@@ -14,7 +14,7 @@ local failedGroups = {}
 local currentTile = nil
 local board = {grid, width=7, height=14} -- grid of blocks
 local input = {up,down,left,right} -- arrow keys
-local stepTime = 0.20 -- smaller = harder levels
+local stepTime = 0.90 -- smaller = harder levels
 
 function love.load()
   math.randomseed(os.time())
@@ -167,6 +167,23 @@ function scoreBoard()
   -- we count them all together... if you get two small
   -- groups to score at once, that's the same as an equal sized
   -- single group
+  for x=0,board.width-1  do
+    local y = board.height - 1
+    while (y >= 0) do
+      local grp = Get(groups, x, y)
+      if (grp) and (not failedGroups[grp]) then
+        -- copy tiles 'above' down one
+        for z=y,1,-1 do
+          Set(board.grid, x, z, Get (board.grid, x, z - 1))
+          Set(groups, x, z, Get (groups, x, z - 1))
+        end
+        Set(board.grid, x, 0, " ")
+        Set(groups, x, 0, nil)
+      else
+        y = y - 1
+      end
+    end
+  end
 end
 
 function addEdges(x,y, groupNumber, pairList, groups)
