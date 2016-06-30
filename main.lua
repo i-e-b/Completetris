@@ -312,6 +312,11 @@ end
 
 function checkTile()
   if (currentTile ~= nil) then return end
+
+  if (Get(board.grid, 3, 0) ~= " ") then -- game over
+    error("game over") -- TODO: proper screen & state
+  end
+
   local next = table.remove(bag, 1)
   currentTile = {tile=next, x=3, y=0}
 end
