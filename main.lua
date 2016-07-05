@@ -16,6 +16,7 @@ local score = 0
 local board = {grid, width=7, height=14} -- grid of blocks
 local input = {up,down,left,right} -- arrow keys
 local stepTime = 0.90 -- smaller = harder levels
+local gameOver = true -- simple mini games have simple states :-)
 
 function love.load()
   math.randomseed(os.time())
@@ -31,6 +32,13 @@ end
 
 -- Draw a frame
 function love.draw()
+  if (gameOver) then
+    love.graphics.setFont(assets.textfont)
+    love.graphics.setColor(255, 0, 70, 255)
+    love.graphics.print("GAME OVER", screenWidth/4, screenHeight/2, 0, 2)
+    return
+  end
+
   -- draw grid
   love.graphics.setFont(assets.blockfont)
   love.graphics.setColor(100, 240, 180, 255)
@@ -314,7 +322,8 @@ function checkTile()
   if (currentTile ~= nil) then return end
 
   if (Get(board.grid, 3, 0) ~= " ") then -- game over
-    error("game over") -- TODO: proper screen & state
+    gameOver = true
+    return
   end
 
   local next = table.remove(bag, 1)
@@ -322,6 +331,7 @@ function checkTile()
 end
 
 function tryDropTile()
+  if (not currentTile) then return end
   local ny = currentTile.y + 1;
   local bottom = ny >= board.height
   if (not bottom) and (board.grid[(ny*board.width) + currentTile.x] == ' ') then
