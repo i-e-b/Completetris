@@ -12,11 +12,12 @@ local groups = {}
 local failedGroups = {}
 
 local currentTile = nil
+local msg ="?"
 local score = 0
 local board = {grid, width=7, height=14} -- grid of blocks
 local input = {up,down,left,right} -- arrow keys
 local stepTime = 0.90 -- smaller = harder levels
-local gameOver = true -- simple mini games have simple states :-)
+local gameOver = false -- simple mini games have simple states :-)
 
 function love.load()
   math.randomseed(os.time())
@@ -72,6 +73,8 @@ function love.draw()
   love.graphics.setFont(assets.textfont)
   love.graphics.setColor(255, 200, 20, 255)
   love.graphics.print(score, 32, 32)
+
+  love.graphics.print(msg, 32, 64)
 
 
     --[[ diagnostics
@@ -295,6 +298,22 @@ function isEdgeAt(tileType, dx, dy)
   error('bad tile '..tileType)
 end
 
+function triggerClick(x,y, input)
+  -- dead simple input. Top quarter of screen is rotate,
+  -- left, right, down are the other quarters
+  local l = "R"
+  if x < (y * (screenWidth / screenHeight)) then l = "L" end
+  local t = "B"
+  if y < ((screenWidth - x) * (screenHeight / screenWidth)) then t = "T" end
+
+  msg = l..t
+
+  if msg == "LT" then input.left = true
+  elseif msg == "RT" then input.up = true
+  elseif msg == "RB" then input.right = true
+  else input.down = true end
+end
+
 function readInput()
   local newInput = {}
   newInput.up = love.keyboard.isDown("up")
@@ -302,20 +321,32 @@ function readInput()
   newInput.left = love.keyboard.isDown("left")
   newInput.right = love.keyboard.isDown("right")
 
-  if (newInput.left and not input.left) and (currentTile.x > 0) then
-    trySlideTile(-1)
-  end
-  if (newInput.right and not input.right) and (currentTile.x < board.width - 1) then
-    trySlideTile(1)
-  end
-  if (newInput.up and not input.up) then
-    currentTile.tile = rotateCW(currentTile.tile)
-  end
-  if (newInput.down and not input.down) then
-    tryDropTile()
+  if love.mouse.isDown(1) then
+    local x,y = love.mouse.getPosition()
+    triggerClick(x,y, newInput)
   end
 
-  input = newInput
+  local touches = love.touch.getTouches()
+  for i, id in ipairs(touches) do
+    local x,y = love.touch.getPosition(id)
+    triggerClick(x,y, newInput)
+  end
+
+
+    if (newInput.left and not input.left) and (currentTile.x > 0) then
+      trySlideTile(-1)
+    end
+    if (newInput.right and not input.right) and (currentTile.x < board.width - 1) then
+      trySlideTile(1)
+    end
+    if (newInput.up and not input.up) then
+      currentTile.tile = rotateCW(currentTile.tile)
+    end
+    if (newInput.down and not input.down) then
+      tryDropTile()
+    end
+
+    input = newInput
 end
 
 function checkTile()
