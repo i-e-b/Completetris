@@ -16,7 +16,6 @@ local msg ="?"
 local score = 0
 local board = {grid, width=7, height=14} -- grid of blocks
 local input = {up,down,left,right} -- arrow keys
-local stepTime = 0.90 -- smaller = harder levels
 local gameOver = false -- simple mini games have simple states :-)
 
 function love.load()
@@ -105,6 +104,9 @@ function love.update(dt)
   readInput()
   fillBag()
   checkTile()
+
+  local stepTime = 1 - (math.min(90000, score) / 100000)
+  if (input.down) then stepTime = 0.1 end
 
   if (time > stepTime) then
     time = time - stepTime
