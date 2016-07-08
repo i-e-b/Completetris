@@ -7,7 +7,7 @@ You can also drop it.
 
 ## To do:
 
-[ ] end of level (success)
-[ ] end of level / crash into top (failure)
-[ ] mobile controls
-[ ] sound/music
+* [ ] end of level (success)
+* [x] end of level / crash into top (failure)
+* [x] mobile controls
+* [ ] sound/music
